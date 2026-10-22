@@ -603,6 +603,10 @@ img { max-width: 100%; display: block; }
   color: var(--ink);
 }
 
+.price-row { display: block; }
+.price-row + .price-row { margin-top: 0.35rem; }
+.price-for { margin-left: 0.4rem; }
+
 .service-list {
   list-style: none;
   margin-bottom: 1.9rem;
