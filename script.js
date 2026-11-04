@@ -41,6 +41,7 @@
 (function () {
   var EMAIL_TO = "abhirajtiwari0102@gmail.com";
   var EMAIL_CC = ["nandnived08@gmail.com"];
+  var SHEET_URL = "https://script.google.com/macros/s/AKfycbzT2vSfKfQpxb8V3lsjVRRUayWW7eF4WvcFR3ZhvUgsQSUMTQFn5hS6iyjL7tklk1koog/exec";
 
   var form = document.getElementById("book-form");
   var service = document.getElementById("book-service");
@@ -80,6 +81,23 @@
     var button = form.querySelector("button[type=submit]");
     button.disabled = true;
     setStatus("Sending…");
+
+    // Also log the submission to the Google Sheet. Fire-and-forget: text/plain
+    // avoids a CORS preflight, and failures here never affect the form.
+    if (!data._honey) {
+      fetch(SHEET_URL, {
+        method: "POST",
+        mode: "no-cors",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify({
+          service: data.service,
+          name: data.name,
+          email: data.email,
+          phone: data.phone,
+          message: data.message
+        })
+      }).catch(function () {});
+    }
 
     fetch("https://formsubmit.co/ajax/" + EMAIL_TO, {
       method: "POST",
