@@ -82,29 +82,38 @@
     button.disabled = true;
     setStatus("Sending…");
 
-    // Also log the submission to the Google Sheet. Fire-and-forget: text/plain
-    // avoids a CORS preflight, and failures here never affect the form.
-    if (!data._honey) {
-      fetch(SHEET_URL, {
-        method: "POST",
-        mode: "no-cors",
-        headers: { "Content-Type": "text/plain;charset=utf-8" },
-        body: JSON.stringify({
-          service: data.service,
-          name: data.name,
-          email: data.email,
-          phone: data.phone,
-          message: data.message
-        })
-      }).catch(function () {});
-    }
+    // Two independent paths: the Google Sheet (which also emails us) and
+    // FormSubmit (email). The form succeeds if either one goes through.
+    // text/plain avoids a CORS preflight; no-cors makes the response opaque,
+    // so a resolved fetch is the best success signal we get.
+    var toSheet = data._honey
+      ? Promise.resolve()
+      : fetch(SHEET_URL, {
+          method: "POST",
+          mode: "no-cors",
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
+          body: JSON.stringify({
+            service: data.service,
+            name: data.name,
+            email: data.email,
+            phone: data.phone,
+            message: data.message
+          })
+        });
 
-    fetch("https://formsubmit.co/ajax/" + EMAIL_TO, {
+    var toEmail = fetch("https://formsubmit.co/ajax/" + EMAIL_TO, {
       method: "POST",
       headers: { "Content-Type": "application/json", Accept: "application/json" },
       body: JSON.stringify(data)
-    })
-      .then(function (r) { return r.json().then(function (j) { if (!r.ok || String(j.success) !== "true") throw j; }); })
+    }).then(function (r) { return r.json().then(function (j) { if (!r.ok || String(j.success) !== "true") throw j; }); });
+
+    var anyOk = function (ps) {
+      return Promise.all(ps.map(function (p) {
+        return p.then(function () { return true; }, function () { return false; });
+      })).then(function (r) { if (!r.some(Boolean)) throw new Error("all failed"); });
+    };
+
+    anyOk([toSheet, toEmail])
       .then(function () {
         form.reset();
         setStatus("Got it. We’ll be in touch soon.", "ok");
