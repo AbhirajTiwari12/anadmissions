@@ -101,19 +101,19 @@
           })
         });
 
-    var toEmail = fetch("https://formsubmit.co/ajax/" + EMAIL_TO, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Accept: "application/json" },
-      body: JSON.stringify(data)
-    }).then(function (r) { return r.json().then(function (j) { if (!r.ok || String(j.success) !== "true") throw j; }); });
-
-    var anyOk = function (ps) {
-      return Promise.all(ps.map(function (p) {
-        return p.then(function () { return true; }, function () { return false; });
-      })).then(function (r) { if (!r.some(Boolean)) throw new Error("all failed"); });
+    // FormSubmit is only the fallback: it fires only if the Sheet path fails.
+    var toEmail = function () {
+      var ctrl = window.AbortController ? new AbortController() : null;
+      if (ctrl) setTimeout(function () { ctrl.abort(); }, 15000);
+      return fetch("https://formsubmit.co/ajax/" + EMAIL_TO, {
+        method: "POST",
+        signal: ctrl ? ctrl.signal : undefined,
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify(data)
+      }).then(function (r) { return r.json().then(function (j) { if (!r.ok || String(j.success) !== "true") throw j; }); });
     };
 
-    anyOk([toSheet, toEmail])
+    toSheet.catch(toEmail)
       .then(function () {
         form.reset();
         setStatus("Got it. We’ll be in touch soon.", "ok");
